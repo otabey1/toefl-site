@@ -1,43 +1,46 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TOEFL Full Test</title>
+  <title>TOEFL Practice Final</title>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #f4f6fa; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #eef3f9; margin: 0; padding: 0; }
     .header {
-      background: #fff;
-      padding: 15px 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      background: #fff; padding: 15px 30px; display: flex;
+      justify-content: space-between; align-items: center;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .container {
-      background: #fff;
-      border-radius: 10px;
-      padding: 30px;
-      max-width: 900px;
-      margin: 30px auto;
+      background: #fff; border-radius: 10px; padding: 30px;
+      max-width: 900px; margin: 30px auto;
       box-shadow: 0 8px 16px rgba(0,0,0,0.1);
     }
     .section { display: none; }
-    textarea, input[type="text"] {
-      width: 100%; padding: 12px; font-size: 1em; margin-top: 10px;
-      border: 1px solid #ccc; border-radius: 8px;
+    textarea {
+      width: 100%; padding: 12px; font-size: 1em;
+      border: 1px solid #ccc; border-radius: 8px; margin-top: 10px;
     }
+    .word-count { font-size: 0.9em; color: #666; margin-top: 5px; }
     button {
       background: #007bff; color: white; border: none;
       padding: 10px 20px; font-size: 1em; border-radius: 8px;
       margin-top: 20px; cursor: pointer;
     }
-    .question-box { margin-top: 20px; }
+    .passage-box {
+      max-height: 300px;
+      overflow-y: scroll;
+      padding: 10px;
+      border: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
     #recordBtn {
       width: 100px; height: 100px; border-radius: 50%;
       background-color: green; color: white; font-size: 2rem;
-      border: none; margin-top: 15px;
+      border: none; margin: 20px auto; display: block;
     }
+    .question-box { margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -51,33 +54,34 @@
     <div class="section" id="writing">
       <h2>✍ Writing</h2>
       <p id="writingPrompt">Loading prompt...</p>
-      <textarea id="writingInput" placeholder="Write your essay here..."></textarea>
+      <textarea id="writingInput" oninput="updateWordCount()" placeholder="Write your essay here..."></textarea>
+      <p class="word-count" id="wordCountDisplay">Words: 0 / 150</p>
       <button onclick="submitWriting()">Submit Writing</button>
       <p id="writingFeedback"></p>
     </div>
 
     <div class="section" id="reading">
       <h2>📖 Reading</h2>
-      <div id="readingPassage">Loading passage...</div>
+      <div class="passage-box" id="readingPassage">Loading passage...</div>
       <div id="readingQuestionBox" class="question-box"></div>
     </div>
 
     <div class="section" id="listening">
       <h2>🎧 Listening</h2>
-      <audio controls id="listeningAudio"></audio>
+      <audio controls id="listeningAudio" onended="loadListeningQuestions()"></audio>
       <div id="listeningQuestionBox" class="question-box"></div>
     </div>
 
     <div class="section" id="speaking">
       <h2>🗣 Speaking</h2>
-      <p id="speakingPrompt">Loading speaking prompt...</p>
+      <p id="speakingPrompt">Loading speaking topic...</p>
       <button id="recordBtn" onclick="simulateRecording()">🎤</button>
       <p id="speakingTimer"></p>
     </div>
 
     <div class="section" id="results">
-      <h2>📊 Your Results</h2>
-      <div id="finalResults">Loading...</div>
+      <h2>📊 Your TOEFL Results</h2>
+      <div id="finalResults">Calculating your score...</div>
     </div>
   </div>
 
@@ -85,24 +89,29 @@
     const sections = ['writing', 'reading', 'listening', 'speaking', 'results'];
     let current = 0;
     let seconds = 60 * 60;
+    let totalScore = 0;
+    let writingFeedback = '';
+    let readingAnswers = [];
+    let readingCorrect = [];
+    let listeningAnswers = [];
+    let listeningCorrect = [];
 
     function startTimer() {
-      const timerInterval = setInterval(() => {
-        if (seconds <= 0) {
-          clearInterval(timerInterval);
+      const interval = setInterval(() => {
+        if (--seconds <= 0) {
+          clearInterval(interval);
           endExam();
         }
-        seconds--;
-        const min = String(Math.floor(seconds / 60)).padStart(2, '0');
-        const sec = String(seconds % 60).padStart(2, '0');
-        document.getElementById('timer').innerText = `Time: ${min}:${sec}`;
+        const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const s = String(seconds % 60).padStart(2, '0');
+        document.getElementById('timer').innerText = `Time: ${m}:${s}`;
       }, 1000);
     }
 
-    async function loadWritingPrompt() {
-      const res = await fetch('https://toefl-backend.onrender.com/api/writing-prompt');
-      const data = await res.json();
-      document.getElementById('writingPrompt').innerText = data.prompt;
+    function updateWordCount() {
+      const text = document.getElementById("writingInput").value;
+      const wordCount = text.trim().split(/\s+/).filter(w => w).length;
+      document.getElementById("wordCountDisplay").innerText = `Words: ${wordCount} / 150`;
     }
 
     async function submitWriting() {
@@ -113,7 +122,15 @@
         body: JSON.stringify({ answer: text })
       });
       const data = await res.json();
-      document.getElementById('writingFeedback').innerText = data.feedback;
+      writingFeedback = data.feedback;
+      totalScore += data.score || 0;
+      document.getElementById('writingFeedback').innerText = writingFeedback;
+    }
+
+    async function loadWritingPrompt() {
+      const res = await fetch('https://toefl-backend.onrender.com/api/writing-prompt');
+      const data = await res.json();
+      document.getElementById('writingPrompt').innerText = data.prompt;
     }
 
     async function loadReading() {
@@ -123,27 +140,31 @@
       document.getElementById('readingPassage').innerText = passage.text;
       let html = "";
       passage.questions.forEach((q, i) => {
-        html += `<p>${q.q}</p>`;
+        html += `<p><strong>${q.q}</strong></p>`;
         q.options.forEach(opt => {
-          html += `<input type="radio" name="q${i}">${opt}<br>`;
+          html += `<label><input type="radio" name="q${i}" value="${opt}"> ${opt}</label><br>`;
         });
+        readingCorrect[i] = q.answer;
       });
       document.getElementById('readingQuestionBox').innerHTML = html;
     }
 
     async function loadListening() {
-      const audio = await fetch('https://toefl-backend.onrender.com/api/listening-audio');
-      const audioData = await audio.json();
+      const audioRes = await fetch('https://toefl-backend.onrender.com/api/listening-audio');
+      const audioData = await audioRes.json();
       document.getElementById('listeningAudio').src = audioData.audioUrl;
+    }
 
+    async function loadListeningQuestions() {
       const res = await fetch('https://toefl-backend.onrender.com/api/listening-questions');
       const data = await res.json();
       let html = "";
       data.questions.forEach((q, i) => {
-        html += `<p>${q.q}</p>`;
+        html += `<p><strong>${q.q}</strong></p>`;
         q.options.forEach(opt => {
-          html += `<input type="radio" name="lq${i}">${opt}<br>`;
+          html += `<label><input type="radio" name="lq${i}" value="${opt}"> ${opt}</label><br>`;
         });
+        listeningCorrect[i] = q.answer;
       });
       document.getElementById('listeningQuestionBox').innerHTML = html;
     }
@@ -155,14 +176,15 @@
     }
 
     function simulateRecording() {
-      let timeLeft = 60;
-      const timerDisplay = document.getElementById("speakingTimer");
+      let time = 60;
+      const timer = document.getElementById("speakingTimer");
       const interval = setInterval(() => {
-        timeLeft--;
-        timerDisplay.innerText = `Recording... ${timeLeft}s`;
-        if (timeLeft <= 0) {
+        timer.innerText = `Recording... ${--time}s`;
+        if (time <= 0) {
           clearInterval(interval);
-          timerDisplay.innerText = "Recording stopped.";
+          timer.innerText = "Recording finished.";
+          totalScore += 25; // mock score
+          endExam();
         }
       }, 1000);
     }
@@ -171,18 +193,51 @@
       document.getElementById(sections[current]).style.display = 'none';
       current++;
       if (current < sections.length) {
-        document.getElementById(sections[current]).style.display = 'block';
-        document.getElementById('sectionName').innerText = sections[current].charAt(0).toUpperCase() + sections[current].slice(1);
-        if (sections[current] === 'reading') loadReading();
-        if (sections[current] === 'listening') loadListening();
-        if (sections[current] === 'speaking') loadSpeakingPrompt();
+        const sec = sections[current];
+        document.getElementById(sec).style.display = 'block';
+        document.getElementById('sectionName').innerText = sec.charAt(0).toUpperCase() + sec.slice(1);
+        if (sec === 'reading') loadReading();
+        if (sec === 'listening') loadListening();
+        if (sec === 'speaking') loadSpeakingPrompt();
       }
     }
 
     function endExam() {
-      document.querySelectorAll('.section').forEach(sec => sec.style.display = 'none');
+      document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
       document.getElementById('results').style.display = 'block';
-      document.getElementById('finalResults').innerText = 'Time is up. Your exam has ended.';
+
+      // Evaluate reading
+      const passageLength = readingCorrect.length;
+      let correctReading = 0;
+      for (let i = 0; i < passageLength; i++) {
+        const answer = document.querySelector(`input[name="q${i}"]:checked`);
+        const text = answer ? answer.value : "";
+        if (text.includes(readingCorrect[i])) correctReading++;
+      }
+      totalScore += correctReading * 2; // 10 correct = 20 pts
+
+      // Evaluate listening
+      let correctListening = 0;
+      for (let i = 0; i < listeningCorrect.length; i++) {
+        const ans = document.querySelector(`input[name="lq${i}"]:checked`);
+        const val = ans ? ans.value : "";
+        if (val.includes(listeningCorrect[i])) correctListening++;
+      }
+      totalScore += correctListening * 2;
+
+      // Final result summary
+      let resultHTML = `<h3>Total Score: ${totalScore} / 120</h3>`;
+      resultHTML += `<h4>Writing Feedback:</h4><p>${writingFeedback}</p>`;
+      resultHTML += `<h4>Reading Answers:</h4>`;
+      readingCorrect.forEach((a, i) => {
+        resultHTML += `<p>Q${i + 1}: Correct answer was <strong>${a}</strong></p>`;
+      });
+      resultHTML += `<h4>Listening Answers:</h4>`;
+      listeningCorrect.forEach((a, i) => {
+        resultHTML += `<p>Q${i + 1}: Correct answer was <strong>${a}</strong></p>`;
+      });
+      resultHTML += `<h4>Speaking Feedback:</h4><p>Well spoken! Your response was clear and organized. (Simulated)</p>`;
+      document.getElementById("finalResults").innerHTML = resultHTML;
     }
 
     window.onload = () => {
