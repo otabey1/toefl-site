@@ -1,19 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TOEFL Training - Full Test</title>
+  <title>TOEFL Full Test</title>
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #eef2f7;
-      margin: 0;
-      padding: 0;
-    }
+    body { font-family: 'Segoe UI', sans-serif; background: #f4f6fa; margin: 0; padding: 0; }
     .header {
-      background: #ffffff;
+      background: #fff;
       padding: 15px 30px;
       display: flex;
       justify-content: space-between;
@@ -28,32 +22,21 @@
       margin: 30px auto;
       box-shadow: 0 8px 16px rgba(0,0,0,0.1);
     }
-    .section {
-      display: none;
-    }
+    .section { display: none; }
     textarea, input[type="text"] {
-      width: 100%;
-      padding: 12px;
-      font-size: 1em;
-      margin-top: 10px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
+      width: 100%; padding: 12px; font-size: 1em; margin-top: 10px;
+      border: 1px solid #ccc; border-radius: 8px;
     }
     button {
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      font-size: 1em;
-      border-radius: 8px;
-      margin-top: 20px;
-      cursor: pointer;
+      background: #007bff; color: white; border: none;
+      padding: 10px 20px; font-size: 1em; border-radius: 8px;
+      margin-top: 20px; cursor: pointer;
     }
-    button:hover {
-      background: #0056b3;
-    }
-    .question-box {
-      margin-top: 20px;
+    .question-box { margin-top: 20px; }
+    #recordBtn {
+      width: 100px; height: 100px; border-radius: 50%;
+      background-color: green; color: white; font-size: 2rem;
+      border: none; margin-top: 15px;
     }
   </style>
 </head>
@@ -65,7 +48,6 @@
   </div>
 
   <div class="container">
-    <!-- Writing -->
     <div class="section" id="writing">
       <h2>✍ Writing</h2>
       <p id="writingPrompt">Loading prompt...</p>
@@ -74,29 +56,25 @@
       <p id="writingFeedback"></p>
     </div>
 
-    <!-- Reading -->
     <div class="section" id="reading">
       <h2>📖 Reading</h2>
       <div id="readingPassage">Loading passage...</div>
       <div id="readingQuestionBox" class="question-box"></div>
     </div>
 
-    <!-- Listening -->
     <div class="section" id="listening">
       <h2>🎧 Listening</h2>
       <audio controls id="listeningAudio"></audio>
       <div id="listeningQuestionBox" class="question-box"></div>
     </div>
 
-    <!-- Speaking -->
     <div class="section" id="speaking">
       <h2>🗣 Speaking</h2>
       <p id="speakingPrompt">Loading speaking prompt...</p>
-      <button onclick="startRecording()">🎤 Start Recording</button>
+      <button id="recordBtn" onclick="simulateRecording()">🎤</button>
       <p id="speakingTimer"></p>
     </div>
 
-    <!-- Results -->
     <div class="section" id="results">
       <h2>📊 Your Results</h2>
       <div id="finalResults">Loading...</div>
@@ -122,14 +100,14 @@
     }
 
     async function loadWritingPrompt() {
-      const res = await fetch('/api/writing-prompt');
+      const res = await fetch('https://toefl-backend.onrender.com/api/writing-prompt');
       const data = await res.json();
       document.getElementById('writingPrompt').innerText = data.prompt;
     }
 
     async function submitWriting() {
       const text = document.getElementById('writingInput').value;
-      const res = await fetch('/api/submit-writing', {
+      const res = await fetch('https://toefl-backend.onrender.com/api/submit-writing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answer: text })
@@ -138,12 +116,66 @@
       document.getElementById('writingFeedback').innerText = data.feedback;
     }
 
+    async function loadReading() {
+      const res = await fetch('https://toefl-backend.onrender.com/api/reading-passages');
+      const data = await res.json();
+      const passage = data.passages[0];
+      document.getElementById('readingPassage').innerText = passage.text;
+      let html = "";
+      passage.questions.forEach((q, i) => {
+        html += `<p>${q.q}</p>`;
+        q.options.forEach(opt => {
+          html += `<input type="radio" name="q${i}">${opt}<br>`;
+        });
+      });
+      document.getElementById('readingQuestionBox').innerHTML = html;
+    }
+
+    async function loadListening() {
+      const audio = await fetch('https://toefl-backend.onrender.com/api/listening-audio');
+      const audioData = await audio.json();
+      document.getElementById('listeningAudio').src = audioData.audioUrl;
+
+      const res = await fetch('https://toefl-backend.onrender.com/api/listening-questions');
+      const data = await res.json();
+      let html = "";
+      data.questions.forEach((q, i) => {
+        html += `<p>${q.q}</p>`;
+        q.options.forEach(opt => {
+          html += `<input type="radio" name="lq${i}">${opt}<br>`;
+        });
+      });
+      document.getElementById('listeningQuestionBox').innerHTML = html;
+    }
+
+    async function loadSpeakingPrompt() {
+      const res = await fetch('https://toefl-backend.onrender.com/api/speaking-topic');
+      const data = await res.json();
+      document.getElementById('speakingPrompt').innerText = data.topic;
+    }
+
+    function simulateRecording() {
+      let timeLeft = 60;
+      const timerDisplay = document.getElementById("speakingTimer");
+      const interval = setInterval(() => {
+        timeLeft--;
+        timerDisplay.innerText = `Recording... ${timeLeft}s`;
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          timerDisplay.innerText = "Recording stopped.";
+        }
+      }, 1000);
+    }
+
     function nextSection() {
       document.getElementById(sections[current]).style.display = 'none';
       current++;
       if (current < sections.length) {
         document.getElementById(sections[current]).style.display = 'block';
         document.getElementById('sectionName').innerText = sections[current].charAt(0).toUpperCase() + sections[current].slice(1);
+        if (sections[current] === 'reading') loadReading();
+        if (sections[current] === 'listening') loadListening();
+        if (sections[current] === 'speaking') loadSpeakingPrompt();
       }
     }
 
