@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TOEFL Training App</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4fa;
+      margin: 0;
+      padding: 0;
+    }
+    .header {
+      background-color: #ffffff;
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 900px;
+      margin: 30px auto;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #2c3e50;
+    }
+    .section {
+      display: none;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 12px;
+      margin-top: 10px;
+      font-size: 1em;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1em;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .word-count, .warning {
+      font-size: 0.9em;
+      margin-top: 5px;
+    }
+    .warning {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div id="timer">Time: 60:00</div>
+    <div id="sectionName">Writing</div>
+    <button onclick="showNext()">Next</button>
+  </div>
+
+  <div class="container">
+    <!-- ✍ WRITING SECTION -->
+    <div class="section" id="writing">
+      <h2>✍ Writing</h2>
+      <p id="writingQuestion"><em>Loading writing prompt...</em></p>
+      <textarea id="writingInput" oninput="updateWordCount()" placeholder="Write your essay here..."></textarea>
+      <div class="word-count" id="wordCountDisplay">Words: 0 / Min: 80 / Max: 250</div>
+      <div class="warning" id="minWordWarning" style="display:none;">⚠️ Minimum word count not reached</div>
+      <button onclick="submitWriting()">Submit Writing</button>
+    </div>
+  </div>
+
+  <script>
+    const sections = ["writing"];
+    let currentSection = 0;
+
+    window.onload = () => {
+      document.getElementById(sections[0]).style.display = 'block';
+      loadWritingPrompt();
+    };
+
+    function showNext() {
+      document.getElementById(sections[currentSection]).style.display = 'none';
+      currentSection++;
+      if (currentSection >= sections.length) return;
+
+      const next = sections[currentSection];
+      document.getElementById(next).style.display = 'block';
+      document.getElementById('sectionName').innerText = next.charAt(0).toUpperCase() + next.slice(1);
+    }
+
+    const minWords = 80, maxWords = 250;
+    function updateWordCount() {
+      const text = document.getElementById("writingInput").value;
+      const words = text.trim().split(/\s+/).filter(w => w).length;
+      document.getElementById("wordCountDisplay").innerText = `Words: ${words} / Min: ${minWords} / Max: ${maxWords}`;
+      document.getElementById("minWordWarning").style.display = words < minWords ? 'block' : 'none';
+    }
+
+    async function loadWritingPrompt() {
+      const res = await fetch('https://toefl-backend.onrender.com/api/writing-prompt');
+      const data = await res.json();
+      document.getElementById("writingQuestion").innerText = data.prompt;
+    }
+
+    async function submitWriting() {
+      const text = document.getElementById("writingInput").value;
+      const res = await fetch('https://toefl-backend.onrender.com/api/submit-writing', {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answer: text })
+      });
+      const data = await res.json();
+      alert("Writing feedback:\n" + data.feedback);
+    }
+  </script>
+</body>
+</html>
